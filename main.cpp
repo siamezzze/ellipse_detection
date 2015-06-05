@@ -2,7 +2,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <iostream>
 #include <fstream>
-#define DEBUG
+//#define DEBUG
 
 using namespace std;
 using namespace cv;
@@ -479,7 +479,9 @@ ellipse_data ellipse_detection(Mat edges, int minimized_size = 64, int min_vote 
         draw_ellipse(drawing_canvas,found, i);
         #endif
     }
+#ifdef DEBUG
     imwrite("ellipses3.jpg", drawing_canvas);
+    #endif
     return found;
 }
 
@@ -488,10 +490,13 @@ vector<ellipse_data> detect_ellipses(Mat src, int minimized_size = 64, unsigned 
     vector<ellipse_data> ellipses = vector<ellipse_data>(number_of_ellipses);
     Mat edges;
     Canny(src, edges, 50, 200, 3);
+#ifdef DEBUG
+    imwrite("edges.jpg", edges);
+    #endif
     //Probably some other transformation should be performed here, such as blurring
     for (int i = 0; i < number_of_ellipses; i++)
     {
-        ellipse_data elp = ellipse_detection(edges, minimized_size, 5, 9);
+        ellipse_data elp = ellipse_detection(edges, minimized_size, 5, 15);
         ellipses[i] = elp;
         cout << "Found: (" << elp.x0 << " " << elp.y0 << " " << elp.a << " " << elp.b << " " << elp.orient << ") " << endl;
         clear_picture(edges, elp);
@@ -500,7 +505,7 @@ vector<ellipse_data> detect_ellipses(Mat src, int minimized_size = 64, unsigned 
 
 }
 
-unsigned int nmb_of_ellipses = 3;
+unsigned int nmb_of_ellipses = 2;
 unsigned int minimised_size = 128;
 
 String inp_img;
