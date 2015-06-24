@@ -4,7 +4,7 @@
 #include <fstream>
 #include <ctime>
 
-#define DEBUG
+//#define DEBUG
 
 using namespace std;
 using namespace cv;
