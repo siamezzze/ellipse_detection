@@ -2,9 +2,6 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <iostream>
 #include <fstream>
-#include <ctime>
-
-#define DEBUG
 
 using namespace std;
 using namespace cv;
@@ -41,11 +38,10 @@ inline double major_axis_length_sq(int x1, int y1, int x2, int y2)
 
 inline double orientation(double x1, double y1, double x2, double y2) {
     if (x1 == x2)
-        return CV_PI/2; //because I don't really know what to do here
+        return CV_PI / 2;
     return atan((y2 - y1) / (x2 - x1));
 }
 
-//TODO : Try storing lists of points instead of full matrices.
 vector<vector<vector<short> > > store_hiearchical_pyramid(Mat& edgesM, int min_size = 32) //create hierarchical pyramid of minimized images
 {
     int log2h = (int)floor(log2(edgesM.rows));
@@ -79,10 +75,6 @@ vector<vector<vector<short> > > store_hiearchical_pyramid(Mat& edgesM, int min_s
         }
     }
     return pyramid;
-}
-
-bool compr(pair<ellipse_data, int> a, pair<ellipse_data, int> b) {
-    return a.second > b.second;
 }
 
 bool compr2(pair<ellipse_data, int> a, pair<ellipse_data, int> b) {
@@ -180,9 +172,6 @@ vector<pair<ellipse_data, int> > hough_transform(vector<vector<short> > &data, i
     pair<int, int> ybounds = make_pair(0, (int) data[0].size());
     vector<pair<ellipse_data, int> > res = vector<pair<ellipse_data, int> >();
 
-#ifdef DEBUG
-    int k = 0;
-#endif
     for (int y1 = ybounds.first; y1 < ybounds.second; y1++)
     {
         for (int x1 = xbounds.first; x1 < xbounds.second; x1++) //point (x1, y1) - side point of major axis
@@ -190,9 +179,6 @@ vector<pair<ellipse_data, int> > hough_transform(vector<vector<short> > &data, i
             if (data[y1][x1] == 0) //not a boundary point
                 continue;
 
-#ifdef DEBUG
-            k++;
-#endif
             for (int y2 = y1; y2 < ybounds.second; y2++)
             {
                 for (int x2 = xbounds.first; x2 < xbounds.second; x2++) //point (x2, y2) - side point of major axis
@@ -206,9 +192,6 @@ vector<pair<ellipse_data, int> > hough_transform(vector<vector<short> > &data, i
             }
         }
     }
-#ifdef DEBUG
-    cout << k << endl;
-#endif
     return res;
 }
 
@@ -221,7 +204,7 @@ ellipse_data relocate_ellipse(vector<vector<short> > &data, ellipse_data prev, i
 
     int maxlen = cvRound(sqrt(data.size() * data.size() + data[0].size() * data[0].size()));
 
-    int acc[maxlen]; //TODO: Really, MUCH less since we know in what range it should be. Fix.
+    int acc[maxlen];
     for (int i = 0; i < maxlen; ++i) { //clear the accumulator array
         acc[i] = 0;
     }
@@ -229,7 +212,6 @@ ellipse_data relocate_ellipse(vector<vector<short> > &data, ellipse_data prev, i
 
     //This time, we search for side points only as far as +- pixel from previously found ones
     //Okay, +-2 pixels for a little bit higher accuracy (I believe).
-    //TODO: Check. If everything else is correct, there should be +-1 pixel anyway.
     int sidex1_start = max(xbounds.first, 2 * prev.x1 - 2);
     int sidex1_fin = min(xbounds.second, 2 * prev.x1 + 2);
     int sidex2_start = max(xbounds.first, 2 * prev.x2 - 2);
@@ -260,102 +242,6 @@ ellipse_data relocate_ellipse(vector<vector<short> > &data, ellipse_data prev, i
     return e.first;
 }
 
-//Have no use for this one, though it is supposed to deal with duplucates nearby
-vector<pair<ellipse_data,int> > remove_duplicates(vector<vector<short> > data, vector<pair<ellipse_data,int> > ellipses, int thr = 20)
-{
-    sort(ellipses.begin(), ellipses.end(), compr);
-    vector<pair<ellipse_data,int> > res;
-    for (int i = 0; i < ellipses.size(); i++)
-    {
-        res.push_back(pair<ellipse_data,int>(ellipses[i].first, 0));
-    }
-
-    for (int y = 0; y < data.size(); y++)
-    {
-        for (int x = 0; x < data[y].size(); x++)
-        {
-            if (data[y][x] == 0)
-                continue;
-            for (int i = 0; i < res.size(); i++)
-            {
-                if (can_belong_to_ellipse(x, y, res[i].first))
-                {
-                    //cout << i << " " << x << " " << y << endl;
-                    res[i].second+=data[x][y];
-                    break;
-                }
-            }
-        }
-    }
-    for (long i = res.size()-1; i >= 0; i--)
-    {
-        if (res[i].second <= thr)
-            res.erase(res.begin()+i);
-    }
-    //sort(res.begin(), res.end(), compr);
-    return res;
-}
-
-/* These are for an idea of sorting with the number of votes comparing with the real length of the ellipse
- * The idea hasn't worked as intended, but I still want to rethink it and give it a second chance. */
-
-double ellipse_length(ellipse_data elp, int step = 0)
-{
-    int mult = pow(2,step);
-    double a = elp.a * mult;
-    double b = elp.b * mult;
-    //return 4 * (CV_PI * a * b + pow(a - b, 2))/ (a+b);
-    return CV_PI * (a+b);
-}
-
-bool compr3(pair<ellipse_data,int> a, pair<ellipse_data,int> b)
-{
-    return (a.second / ellipse_length(a.first)) < (b.second / ellipse_length(b.first));
-}
-
-//Debug output
-
-//image data to text file
-void write_data_to_file(vector<vector<short> > & data, const char* fname = "data.txt")
-{
-    ofstream myfile;
-    myfile.open (fname);
-    for (int i = 0; i < data.size(); i++)
-    {
-        for (int j = 0; j < data[0].size(); j++)
-        {
-            myfile << data[i][j] << " ";
-        }
-        myfile << endl;
-    }
-    myfile.close();
-}
-
-//Ellipse data to text file
-void write_ellipses_to_file(vector<pair<ellipse_data,int> > & ellipses, const char* fname = "data.txt", int step = 0)
-{
-    ofstream myfile;
-    myfile.open (fname);
-    for (int i = 0; i < ellipses.size(); i++)
-    {
-        ellipse_data found = ellipses[i].first;
-        myfile << "(" << found.x0 << " " << found.y0 << " " << found.a << " " << found.b << " " << found.orient << ") [" << found.x1 << ", " << found.y1 << ", " << found.x2 << ", " <<found.y2<< "] " << endl;
-        myfile << ellipses[i].second << " " << ellipses[i].second / ellipse_length(found,step) << endl;
-        myfile << endl;
-    }
-    myfile.close();
-}
-
-//draw ellipse
-void draw_ellipse(Mat & canvas, ellipse_data elp, int step = 0)
-{
-    Scalar colors[5] = {Scalar(0, 0, 255), Scalar(0, 255, 0), Scalar(255, 0, 0), Scalar(0, 0, 0), Scalar(255, 255, 0)};
-    //int multp = step + 1;
-    ellipse(canvas, Point_<int>(elp.x0 * pow(2,step), elp.y0 * pow(2,step)), Size_<double>(elp.a * pow(2,step),elp.b *pow(2,step)), elp.orient * 180/ CV_PI, 0, 360, colors[step], 2, LINE_AA);
-}
-
-//end of debug output functions
-
 void clear_picture(Mat& edges, ellipse_data elp)
 {
     for (int x = 0; x < edges.cols; x++)
@@ -371,29 +257,11 @@ void clear_picture(Mat& edges, ellipse_data elp)
 
 ellipse_data ellipse_detection(Mat edges, int minimized_size = 64, int min_vote = 4, int min_dist = 5)
 {
-#ifdef DEBUG
-    unsigned int start_time = clock();
-#endif
     vector<vector<vector<short> > > pyramid = store_hiearchical_pyramid(edges, minimized_size);
-#ifdef DEBUG
-    unsigned int end_time = clock(); // конечное время
-    cout << "Pyramid stored: " << end_time - start_time << " " << ((float) (end_time - start_time)) / CLOCKS_PER_SEC <<
-    endl;
-    start_time = end_time;
-#endif
 
     int n = (int)pyramid.size();
     vector<pair<ellipse_data, int> > ellipses = hough_transform(pyramid[n - 1], min_vote, min_dist);
 
-#ifdef DEBUG
-    end_time = clock(); // конечное время
-    cout << "First transform performed: " << end_time - start_time << " " <<
-    ((float) (end_time - start_time)) / CLOCKS_PER_SEC << endl;
-    start_time = end_time;
-#endif
-
-    //some preparations can be made here
-    //ellipses = remove_duplicates(pyramid[n - 1],ellipses);
     if (ellipses.size() < 1) {
         cout << "Didn't find anything" << endl;
         return ellipse_data(-1, -1, -1, -1, 0);
@@ -403,16 +271,7 @@ ellipse_data ellipse_detection(Mat edges, int minimized_size = 64, int min_vote 
     for (int i = n-2; i >= 0; i--)
     {
         cout << "Step " << n - i << " of " << n << endl;
-#ifdef DEBUG
-        start_time = clock();
-#endif
         found = relocate_ellipse(pyramid[i], found);
-#ifdef DEBUG
-        end_time = clock(); // конечное время
-        cout << "Second transform performed: " << end_time - start_time << " " <<
-        ((float) (end_time - start_time)) / CLOCKS_PER_SEC << endl;
-        //start_time = end_time;
-        #endif
     }
     return found;
 }
@@ -422,11 +281,6 @@ vector<ellipse_data> detect_ellipses(Mat src, int minimized_size = 64, unsigned 
     vector<ellipse_data> ellipses = vector<ellipse_data>(number_of_ellipses);
     Mat edges;
     Canny(src, edges, 50, 200, 3);
-#ifdef DEBUG
-    imwrite("edges.jpg", edges);
-
-    int start_time = clock();
-    #endif
     //Probably some other transformation should be performed here, such as blurring
     for (int i = 0; i < number_of_ellipses; i++)
     {
@@ -436,10 +290,6 @@ vector<ellipse_data> detect_ellipses(Mat src, int minimized_size = 64, unsigned 
         ", A = " << elp.orient << ") " << endl;
         clear_picture(edges, elp);
     }
-#ifdef DEBUG
-    int end_time = clock(); // конечное время
-    cout << "Full time: " << end_time - start_time << " " << ((float) (end_time - start_time)) / CLOCKS_PER_SEC << endl;
-#endif
     return ellipses;
 
 }
@@ -469,9 +319,6 @@ int main( int argc, char** argv ) {
     }
 
     Mat ellipses_draw = src.clone();
-
-    //TODO: number of ellipses, output image path and minimised size should be taken from user, too.
-    //TODO: some simple GUI would be nice.
     vector<ellipse_data> ellipses = detect_ellipses(src, minimised_size, nmb_of_ellipses);
     for (int i = 0; i < ellipses.size(); i++)
     {
@@ -482,7 +329,6 @@ int main( int argc, char** argv ) {
                     0, 360, Scalar(0, 0, 255), 4, LINE_AA);
         }
     }
-    //imshow( "Ellipses", ellipses_draw );
     imwrite(out_img, ellipses_draw);
 
 
