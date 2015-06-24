@@ -2,7 +2,9 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <iostream>
 #include <fstream>
-//#define DEBUG
+#include <ctime>
+
+#define DEBUG
 
 using namespace std;
 using namespace cv;
@@ -43,8 +45,6 @@ inline double orientation(double x1, double y1, double x2, double y2) {
     return atan((y2 - y1) / (x2 - x1));
 }
 
-
-//TODO : Try using OpenCV's PyrUp and PyrDown instead (and therefore not storing anything except for image)
 //TODO : Try storing lists of points instead of full matrices.
 vector<vector<vector<short> > > store_hiearchical_pyramid(Mat& edgesM, int min_size = 32) //create hierarchical pyramid of minimized images
 {
@@ -180,6 +180,9 @@ vector<pair<ellipse_data, int> > hough_transform(vector<vector<short> > &data, i
     pair<int, int> ybounds = make_pair(0, (int) data[0].size());
     vector<pair<ellipse_data, int> > res = vector<pair<ellipse_data, int> >();
 
+#ifdef DEBUG
+    int k = 0;
+#endif
     for (int y1 = ybounds.first; y1 < ybounds.second; y1++)
     {
         for (int x1 = xbounds.first; x1 < xbounds.second; x1++) //point (x1, y1) - side point of major axis
@@ -187,7 +190,9 @@ vector<pair<ellipse_data, int> > hough_transform(vector<vector<short> > &data, i
             if (data[y1][x1] == 0) //not a boundary point
                 continue;
 
-
+#ifdef DEBUG
+            k++;
+#endif
             for (int y2 = y1; y2 < ybounds.second; y2++)
             {
                 for (int x2 = xbounds.first; x2 < xbounds.second; x2++) //point (x2, y2) - side point of major axis
@@ -201,7 +206,9 @@ vector<pair<ellipse_data, int> > hough_transform(vector<vector<short> > &data, i
             }
         }
     }
-
+#ifdef DEBUG
+    cout << k << endl;
+#endif
     return res;
 }
 
@@ -368,9 +375,26 @@ ellipse_data ellipse_detection(Mat edges, int minimized_size = 64, int min_vote 
     Mat drawing_canvas = src.clone();
 #endif
 
+#ifdef DEBUG
+    unsigned int start_time = clock();
+#endif
     vector<vector<vector<short> > > pyramid = store_hiearchical_pyramid(edges, minimized_size);
+#ifdef DEBUG
+    unsigned int end_time = clock(); // конечное время
+    cout << "Pyramid stored: " << end_time - start_time << " " << ((float) (end_time - start_time)) / CLOCKS_PER_SEC <<
+    endl;
+    start_time = end_time;
+#endif
+
     int n = (int)pyramid.size();
     vector<pair<ellipse_data, int> > ellipses = hough_transform(pyramid[n - 1], min_vote, min_dist);
+
+#ifdef DEBUG
+    end_time = clock(); // конечное время
+    cout << "First transform performed: " << end_time - start_time << " " <<
+    ((float) (end_time - start_time)) / CLOCKS_PER_SEC << endl;
+    start_time = end_time;
+#endif
 
     //some preparations can be made here
     //ellipses = remove_duplicates(pyramid[n - 1],ellipses);
@@ -383,13 +407,23 @@ ellipse_data ellipse_detection(Mat edges, int minimized_size = 64, int min_vote 
     for (int i = n-2; i >= 0; i--)
     {
         cout << "Step " << n - i << " of " << n << endl;
+#ifdef DEBUG
+        start_time = clock();
+#endif
         found = relocate_ellipse(pyramid[i], found);
 #ifdef DEBUG
-        draw_ellipse(drawing_canvas,found, i);
+        end_time = clock(); // конечное время
+        cout << "Second transform performed: " << end_time - start_time << " " <<
+        ((float) (end_time - start_time)) / CLOCKS_PER_SEC << endl;
+        //start_time = end_time;
         #endif
+
+#ifdef DEBUG
+        //draw_ellipse(drawing_canvas,found, i);
+#endif
     }
 #ifdef DEBUG
-    imwrite("ellipses3.jpg", drawing_canvas);
+    //imwrite("ellipses3.jpg", drawing_canvas);
     #endif
     return found;
 }
@@ -401,27 +435,43 @@ vector<ellipse_data> detect_ellipses(Mat src, int minimized_size = 64, unsigned 
     Canny(src, edges, 50, 200, 3);
 #ifdef DEBUG
     imwrite("edges.jpg", edges);
+
+    int start_time = clock();
     #endif
     //Probably some other transformation should be performed here, such as blurring
     for (int i = 0; i < number_of_ellipses; i++)
     {
         ellipse_data elp = ellipse_detection(edges, minimized_size, 5, 15);
         ellipses[i] = elp;
-        cout << "Found: (" << elp.x0 << " " << elp.y0 << " " << elp.a << " " << elp.b << " " << elp.orient << ") " << endl;
+        cout << "Found: (x_0 = " << elp.x0 << ", y_0 = " << elp.y0 << ", a = " << elp.a << ", b = " << elp.b <<
+        ", A = " << elp.orient << ") " << endl;
         clear_picture(edges, elp);
     }
+#ifdef DEBUG
+    int end_time = clock(); // конечное время
+    cout << "Full time: " << end_time - start_time << " " << ((float) (end_time - start_time)) / CLOCKS_PER_SEC << endl;
+#endif
     return ellipses;
 
 }
 
-unsigned int nmb_of_ellipses = 2;
+unsigned int nmb_of_ellipses = 1;
 unsigned int minimised_size = 128;
 
 String inp_img;
-String out_img = "ellipses2.jpg";
+String out_img = "ellipses.jpg";
 
 int main( int argc, char** argv ) {
+    if (argc < 2) {
+        cout <<
+        "Usage: <input file name> [<output file name> (default: \"ellipses.jpg\") [<maximum number of ellipces to find (default: 1)>]]" <<
+        endl;
+        return 0;
+    }
     inp_img = argv[1];
+
+    if (argc > 2)
+        out_img = argv[2];
     src = imread(inp_img, 1);
     if(! src.data )                              // Check for invalid input
     {
@@ -440,7 +490,7 @@ int main( int argc, char** argv ) {
         if ((elp.x0 >= 0) && (elp.y0 >=0))
         {
             ellipse(ellipses_draw, Point_<int>(elp.x0, elp.y0), Size_<double>(elp.a, elp.b), elp.orient * 180 / CV_PI,
-                    0, 360, Scalar(0, 0, 255), 2, LINE_AA);
+                    0, 360, Scalar(0, 0, 255), 4, LINE_AA);
         }
     }
     //imshow( "Ellipses", ellipses_draw );
