@@ -4,7 +4,7 @@
 #include <fstream>
 #include <ctime>
 
-//#define DEBUG
+#define DEBUG
 
 using namespace std;
 using namespace cv;
@@ -372,10 +372,6 @@ void clear_picture(Mat& edges, ellipse_data elp)
 ellipse_data ellipse_detection(Mat edges, int minimized_size = 64, int min_vote = 4, int min_dist = 5)
 {
 #ifdef DEBUG
-    Mat drawing_canvas = src.clone();
-#endif
-
-#ifdef DEBUG
     unsigned int start_time = clock();
 #endif
     vector<vector<vector<short> > > pyramid = store_hiearchical_pyramid(edges, minimized_size);
@@ -417,14 +413,7 @@ ellipse_data ellipse_detection(Mat edges, int minimized_size = 64, int min_vote 
         ((float) (end_time - start_time)) / CLOCKS_PER_SEC << endl;
         //start_time = end_time;
         #endif
-
-#ifdef DEBUG
-        //draw_ellipse(drawing_canvas,found, i);
-#endif
     }
-#ifdef DEBUG
-    //imwrite("ellipses3.jpg", drawing_canvas);
-    #endif
     return found;
 }
 
