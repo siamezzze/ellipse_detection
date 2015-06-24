@@ -2,6 +2,7 @@ This is the implementation of Hough transform using one-dimensional accumulator 
 
 Build:
 > cmake .
+
 > make
 
 NOTE: Requires OpenCV (3.0 recommended).
