@@ -9,7 +9,7 @@ NOTE: Requires OpenCV (3.0 recommended).
 
 Run:
 
-> ./Ellipse_detection <input file> [<output file>]
+> ./Ellipse_detection <input file> \[<output file>\]
 
 For example:
 
