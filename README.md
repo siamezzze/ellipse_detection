@@ -1,8 +1,9 @@
-This is the implementation of Hough transform using one-dimentional accumulator array and hierarhical pyramid.
+This is the implementation of Hough transform using one-dimensional accumulator array and hierarchical pyramid.
 
 Build:
 > cmake .
 > make
+
 NOTE: Requires OpenCV (3.0 recommended).
 
 Run:
